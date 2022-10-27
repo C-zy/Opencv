@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+	<title>SUPERY</title>
+	<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+	<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css" />
+	<!-- 引入组件库 -->
+	<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0;" />
+	<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+	<script src="./opencv.js"></script>
+</head>
+
+<body>
+	<div id="app">
+		
+		<img id="imageSrc" alt="No Image" src="./demo.png" style="max-width: 400px;max-height:400px" />
+		<div class="inputoutput">
+			<canvas id="canvasOutput"></canvas>
+			<div class="caption">canvasOutput</div>
+		</div>
+		<el-button  @click="demo">默认按钮</el-button>
+		<el-upload class="upload-demo" action="#" :auto-upload="false" list-type="picture" :file-list="fileList"
+			:on-change="demf">
+			<el-button size="small" type="primary">点击上传</el-button>
+		</el-upload>
+
+		
+	</div>
+	<script>
+		new Vue({
+			el: "#app",
+			data: {
+				input: "",
+				synth: window.speechSynthesis,
+				fileList: []
+			},
+			created() { },
+			methods: {
+				demf(e) {
+					let imgElement = document.getElementById('imageSrc');
+					imgElement.src = e.url
+				},
+				demo() {
+					let imgElement = document.getElementById('imageSrc');
+					let mat = cv.imread(imgElement);
+					mat = this.getRed(mat)
+					cv.imshow('canvasOutput', mat);
+					mat.delete();
+				},
+
+
+				// 获取图像
+				getRed(image) {
+					let dst = new cv.Mat();
+					let dst2 = new cv.Mat();
+					let dst3 = new cv.Mat();
+					let dst4 = new cv.Mat();
+
+					let low = new cv.Mat(
+						image.rows,
+						image.cols,
+						image.type(),
+						[200, 160, 130, 0]
+					)
+					let high = new cv.Mat(
+						image.rows,
+						image.cols,
+						image.type(),
+						[255, 190,160, 255]
+					)
+
+					let contours = new cv.MatVector();
+
+					cv.inRange(image, low, high, dst); // 去除颜色范围外的颜色
+					cv.threshold(dst, dst2, 230, 255, cv.THRESH_BINARY); //二值化
+					cv.findContours(dst2, contours, dst3, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE) //检测轮廓
+
+					if(contours.size() == 0) return image
+					let obj;
+					let rect = {
+						x:cv.boundingRect(contours.get(0)).x,
+						y:cv.boundingRect(contours.get(0)).y,
+						c:0,
+						d:0
+					};
+					for (let i = 0; i < contours.size(); i++) {
+						obj = cv.boundingRect(contours.get(i))
+
+						if(obj.x < rect.x) rect.x = obj.x
+						if(obj.y < rect.y) rect.y = obj.y
+						if((obj.x + obj.width) > rect.c) rect.c = obj.x + obj.width
+						if((obj.y + obj.height) > rect.d) rect.d = obj.y + obj.height
+						
+					}
+					let position = {
+						X: (rect.c - rect.x) / 2,
+						Y: (rect.d - rect.y) / 2
+					}
+					console.log('位置：', position)
+					cv.rectangle(image, new cv.Point(rect.x, rect.y), new cv.Point(rect.c, rect.d), new cv.Scalar(144, 207, 91, 255), 2);
+
+					return image
+				},
+			},
+		});
+	</script>
+</body>
+<style></style>
+
+</html>
